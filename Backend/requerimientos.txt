@@ -1,0 +1,4 @@
+1. Se crearan partidos donde se podran definir los jugadores de los equipos, las alineaciones y su rol (Delantero, defensa, centrocambista, portero, etc...).
+2. Se llevara un conteo de goles y asistencias en los partidos, junto con el tiempo del momento del gol en el partido.
+3. Los jugadores tendria un historico de goles y asistencias, junto con los partidos que han jugado y su rol.
+4. Se pondra un mapa con los locales cerca a la cancha.
