@@ -22,7 +22,7 @@ const MapPage: React.FC = () => {
   useEffect(() => {
     const fetchMarkers = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/locations`);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/locations`);
         const data = await response.json();
 
         const formattedMarkers = data.map((location: any) => ({
@@ -50,7 +50,7 @@ const MapPage: React.FC = () => {
 
   const handleVote = async (id: string, type: "good" | "bad") => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/locations/${id}/vote`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/locations/${id}/vote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ voteType: type }),
