@@ -3,49 +3,54 @@
 import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
 
-// Definir la interfaz Marker para tipar los marcadores
 interface Marker {
-  position: [number, number]; // Coordenadas [latitud, longitud]
-  text: string; // Texto del popup
-  icon?: string; // Ruta del ícono personalizado
+  position: [number, number];
+  text: string;
+  icon?: string;
+  id: string; // Asegúrate de incluir el ID de la base de datos
 }
 
-// Cargar el componente Map dinámicamente
 const Map = dynamic(() => import("../../components/Map"), { ssr: false });
 
 const MapPage: React.FC = () => {
-  const center: [number, number] = [4.146223, -73.607822]; // Coordenadas iniciales
+  const center: [number, number] = [4.146223, -73.607822];
   const zoom: number = 17;
 
-  // Lista de marcadores con íconos personalizados
-  const markers: Marker[] = [
-    { position: center, text: "Cancha de Fulvo", icon: "/icono_cancha.png" },
-    { position: [4.145431, -73.606288], text: "D1", icon: "/icono_d1.png" },
-    { position: [4.146555, -73.610775], text: "Burguer POP", icon: "/icono_comida.png" },
-    { position: [4.147002, -73.615614], text: "Arepas Malucas", icon: "/icono_comida.png" },
-  ];
-
+  const [markers, setMarkers] = useState<Marker[]>([]);
   const [votes, setVotes] = useState<Record<string, { good: number; bad: number }>>({});
 
-  // Cargar votos del backend al montar el componente
   useEffect(() => {
-    const fetchVotes = async () => {
+    const fetchMarkers = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/locations/votes`);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/locations`);
         const data = await response.json();
-        setVotes(data);
+
+        const formattedMarkers = data.map((location: any) => ({
+          position: [location.latitude, location.longitude] as [number, number],
+          text: location.name,
+          icon: location.icon || "/default-icon.png",
+          id: location._id,
+        }));
+
+        setMarkers(formattedMarkers);
+
+        // Inicializar votos
+        const initialVotes = data.reduce((acc: any, location: any) => {
+          acc[location._id] = { good: location.goodVotes, bad: location.badVotes };
+          return acc;
+        }, {});
+        setVotes(initialVotes);
       } catch (error) {
-        console.error("Error al cargar los votos:", error);
+        console.error("Error al cargar los marcadores:", error);
       }
     };
 
-    fetchVotes();
+    fetchMarkers();
   }, []);
 
-  // Manejar el voto al hacer clic en "Bueno" o "Malo"
   const handleVote = async (id: string, type: "good" | "bad") => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/locations/${id}/vote`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/locations/${id}/vote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ voteType: type }),
@@ -56,9 +61,8 @@ const MapPage: React.FC = () => {
       }
 
       const updatedLocation = await response.json();
-      console.log("Voto registrado:", updatedLocation);
 
-      // Actualizar el estado local con los nuevos votos
+      // Actualizar votos en el estado
       setVotes((prevVotes) => ({
         ...prevVotes,
         [id]: {
@@ -78,30 +82,25 @@ const MapPage: React.FC = () => {
       <div className="mt-4">
         <h2 className="text-xl font-semibold">Lista de Marcadores:</h2>
         <ul className="mt-2">
-          {markers.map((marker, index) => {
-            if (marker.position === center) return null; // Omitir el marcador central
-
-            const id = `marker-${index}`;
-            return (
-              <li key={id} className="flex justify-between items-center mb-2">
-                <span className="flex-1">{marker.text}</span>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => handleVote(id, "good")} // Llama a la función handleVote
-                    className="px-2 py-1 bg-green-500 text-white rounded"
-                  >
-                    Bueno ({votes[id]?.good || 0})
-                  </button>
-                  <button
-                    onClick={() => handleVote(id, "bad")} // Llama a la función handleVote
-                    className="px-2 py-1 bg-red-500 text-white rounded"
-                  >
-                    Malo ({votes[id]?.bad || 0})
-                  </button>
-                </div>
-              </li>
-            );
-          })}
+          {markers.map((marker) => (
+            <li key={marker.id} className="flex justify-between items-center mb-2">
+              <span className="flex-1">{marker.text}</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleVote(marker.id, "good")}
+                  className="px-2 py-1 bg-green-500 text-white rounded"
+                >
+                  Bueno ({votes[marker.id]?.good || 0})
+                </button>
+                <button
+                  onClick={() => handleVote(marker.id, "bad")}
+                  className="px-2 py-1 bg-red-500 text-white rounded"
+                >
+                  Malo ({votes[marker.id]?.bad || 0})
+                </button>
+              </div>
+            </li>
+          ))}
         </ul>
       </div>
     </div>

@@ -12,12 +12,12 @@ class LocationController {
 
     static async getAllLocations(req, res) {
         try {
-            const locations = await LocationService.getAllLocations();
-            res.status(200).json(locations);
+          const locations = await LocationService.getAllLocations();
+          res.status(200).json(locations); // Devuelve un JSON
         } catch (error) {
-            res.status(500).json({ error: error.message });
+          res.status(500).json({ error: error.message });
         }
-    }
+      }
 
     static async getLocationById(req, res) {
         try {
