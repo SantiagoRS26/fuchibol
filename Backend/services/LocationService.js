@@ -12,7 +12,7 @@ class LocationService {
 
     static async getAllLocations() {
         try {
-            return await Location.find();
+            return await Location.find(); // Recupera todas las ubicaciones desde MongoDB
         } catch (error) {
             throw new Error(`Error al obtener las ubicaciones: ${error.message}`);
         }
@@ -44,30 +44,12 @@ class LocationService {
         }
     }
 
-    /**
-     * (Opcional) Obtiene ubicaciones cercanas a una latitud/longitud dada.
-     * Para usar esto, necesitarías un índice geoespacial (2dsphere) y
-     * almacenar la ubicación como GeoJSON en el schema. 
-     * Aquí se muestra sólo la firma del método a modo ilustrativo.
-     */
-    static async getLocationsNearby(lat, lng, maxDistance = 5000) {
+    static async incrementVote(locationId, voteType) {
         try {
-            // EJEMPLO: Deberías ajustar tu esquema a un campo "location: { type: Point, coordinates: [lng, lat] }" 
-            // y crear un índice geoespacial. Una vez hecho, podrías usar algo como:
-            /*
-            return await Location.find({
-              location: {
-                $near: {
-                  $geometry: { type: 'Point', coordinates: [ lng, lat ] },
-                  $maxDistance: maxDistance
-                }
-              }
-            });
-            */
-            // De momento, retornamos vacío o un simple find() (ejemplo básico):
-            return await Location.find();
+            const updateField = voteType === 'good' ? { $inc: { goodVotes: 1 } } : { $inc: { badVotes: 1 } };
+            return await Location.findByIdAndUpdate(locationId, updateField, { new: true });
         } catch (error) {
-            throw new Error(`Error al obtener ubicaciones cercanas: ${error.message}`);
+            throw new Error(`Error al incrementar el voto: ${error.message}`);
         }
     }
 }

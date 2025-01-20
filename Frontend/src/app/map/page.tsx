@@ -27,27 +27,48 @@ const MapPage: React.FC = () => {
 
   const [votes, setVotes] = useState<Record<string, { good: number; bad: number }>>({});
 
-  // Cargar votos del localStorage al montar el componente
+  // Cargar votos del backend al montar el componente
   useEffect(() => {
-    const storedVotes = localStorage.getItem("votes");
-    if (storedVotes) {
-      setVotes(JSON.parse(storedVotes));
-    }
+    const fetchVotes = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/locations/votes`);
+        const data = await response.json();
+        setVotes(data);
+      } catch (error) {
+        console.error("Error al cargar los votos:", error);
+      }
+    };
+
+    fetchVotes();
   }, []);
 
-  // Guardar votos en localStorage cada vez que cambien
-  useEffect(() => {
-    localStorage.setItem("votes", JSON.stringify(votes));
-  }, [votes]);
+  // Manejar el voto al hacer clic en "Bueno" o "Malo"
+  const handleVote = async (id: string, type: "good" | "bad") => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/locations/${id}/vote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ voteType: type }),
+      });
 
-  const handleVote = (id: string, type: "good" | "bad") => {
-    setVotes((prevVotes) => ({
-      ...prevVotes,
-      [id]: {
-        ...prevVotes[id],
-        [type]: (prevVotes[id]?.[type] || 0) + 1,
-      },
-    }));
+      if (!response.ok) {
+        throw new Error("Error al registrar el voto");
+      }
+
+      const updatedLocation = await response.json();
+      console.log("Voto registrado:", updatedLocation);
+
+      // Actualizar el estado local con los nuevos votos
+      setVotes((prevVotes) => ({
+        ...prevVotes,
+        [id]: {
+          good: updatedLocation.goodVotes,
+          bad: updatedLocation.badVotes,
+        },
+      }));
+    } catch (error) {
+      console.error("Error al registrar el voto:", error);
+    }
   };
 
   return (
@@ -64,15 +85,15 @@ const MapPage: React.FC = () => {
             return (
               <li key={id} className="flex justify-between items-center mb-2">
                 <span className="flex-1">{marker.text}</span>
-                <div className="flex gap-1"> {/* Ajustar el espaciado entre botones */}
+                <div className="flex gap-1">
                   <button
-                    onClick={() => handleVote(id, "good")}
+                    onClick={() => handleVote(id, "good")} // Llama a la función handleVote
                     className="px-2 py-1 bg-green-500 text-white rounded"
                   >
                     Bueno ({votes[id]?.good || 0})
                   </button>
                   <button
-                    onClick={() => handleVote(id, "bad")}
+                    onClick={() => handleVote(id, "bad")} // Llama a la función handleVote
                     className="px-2 py-1 bg-red-500 text-white rounded"
                   >
                     Malo ({votes[id]?.bad || 0})

@@ -3,78 +3,65 @@ const LocationService = require('../services/LocationService');
 class LocationController {
     static async createLocation(req, res) {
         try {
-            const locationData = req.body;
-            const createdLocation = await LocationService.createLocation(locationData);
-            return res.status(201).json(createdLocation);
+            const newLocation = await LocationService.createLocation(req.body);
+            res.status(201).json(newLocation);
         } catch (error) {
-            return res.status(500).json({ message: error.message });
+            res.status(500).json({ error: error.message });
         }
     }
 
     static async getAllLocations(req, res) {
         try {
             const locations = await LocationService.getAllLocations();
-            return res.status(200).json(locations);
+            res.status(200).json(locations);
         } catch (error) {
-            return res.status(500).json({ message: error.message });
+            res.status(500).json({ error: error.message });
         }
     }
 
     static async getLocationById(req, res) {
         try {
-            const { id } = req.params;
-            const location = await LocationService.getLocationById(id);
+            const location = await LocationService.getLocationById(req.params.id);
             if (!location) {
-                return res.status(404).json({ message: 'Ubicación no encontrada' });
+                return res.status(404).json({ error: 'Ubicación no encontrada' });
             }
-            return res.status(200).json(location);
+            res.status(200).json(location);
         } catch (error) {
-            return res.status(500).json({ message: error.message });
+            res.status(500).json({ error: error.message });
         }
     }
 
     static async updateLocation(req, res) {
         try {
-            const { id } = req.params;
-            const updateData = req.body;
-            const updatedLocation = await LocationService.updateLocation(id, updateData);
-            if (!updatedLocation) {
-                return res.status(404).json({ message: 'Ubicación no encontrada' });
-            }
-            return res.status(200).json(updatedLocation);
+            const updatedLocation = await LocationService.updateLocation(req.params.id, req.body);
+            res.status(200).json(updatedLocation);
         } catch (error) {
-            return res.status(500).json({ message: error.message });
+            res.status(500).json({ error: error.message });
         }
     }
 
     static async deleteLocation(req, res) {
         try {
-            const { id } = req.params;
-            const deletedLocation = await LocationService.deleteLocation(id);
-            if (!deletedLocation) {
-                return res.status(404).json({ message: 'Ubicación no encontrada' });
-            }
-            return res.status(200).json({ message: 'Ubicación eliminada correctamente' });
+            await LocationService.deleteLocation(req.params.id);
+            res.status(204).send();
         } catch (error) {
-            return res.status(500).json({ message: error.message });
+            res.status(500).json({ error: error.message });
         }
     }
 
-    /**
-     * (Opcional) Obtiene ubicaciones cercanas (requiere ajustes en el modelo)
-     */
-    static async getNearbyLocations(req, res) {
+    static async voteLocation(req, res) {
         try {
-            // Ejemplo de query param: /api/locations/nearby?lat=4.67&lng=-74.05&distance=2000
-            const { lat, lng, distance } = req.query;
-            const latNum = parseFloat(lat);
-            const lngNum = parseFloat(lng);
-            const distNum = parseInt(distance) || 5000;
+            const { id } = req.params;
+            const { voteType } = req.body;
 
-            const locations = await LocationService.getLocationsNearby(latNum, lngNum, distNum);
-            return res.status(200).json(locations);
+            if (!['good', 'bad'].includes(voteType)) {
+                return res.status(400).json({ error: 'Tipo de voto inválido' });
+            }
+
+            const updatedLocation = await LocationService.incrementVote(id, voteType);
+            res.status(200).json(updatedLocation);
         } catch (error) {
-            return res.status(500).json({ message: error.message });
+            res.status(500).json({ error: error.message });
         }
     }
 }
