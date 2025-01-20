@@ -16,6 +16,7 @@ export function NavBar() {
     { name: 'Inicio', href: '/' },
     { name: 'Jugadores', href: '/players' },
     { name: 'Partidos', href: '/matches' },
+    { name: 'Mapa', href: '/map'}
     // Agrega más enlaces si necesitas
   ]
 
