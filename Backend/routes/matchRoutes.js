@@ -14,4 +14,6 @@ router.delete('/:id', MatchController.deleteMatch);
 
 router.post('/:id/goals', MatchController.addGoal);
 
+router.patch('/:id/players/:playerId/position', MatchController.updatePlayerPositionInMatch);
+
 module.exports = router;

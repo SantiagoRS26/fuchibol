@@ -70,6 +70,24 @@ class MatchController {
             return res.status(500).json({ message: error.message });
         }
     }
+
+    static async updatePlayerPositionInMatch(req, res) {
+        try {
+            const { id: matchId, playerId } = req.params;
+            const positionData = req.body;
+
+            const updatedMatch = await MatchService.updatePlayerPositionInMatch(matchId, playerId, positionData);
+            if (!updatedMatch) {
+                return res.status(404).json({
+                    message: 'Partido o jugador no encontrado para esta actualización'
+                });
+            }
+
+            return res.status(200).json(updatedMatch);
+        } catch (error) {
+            return res.status(500).json({ message: error.message });
+        }
+    }
 }
 
 module.exports = MatchController;

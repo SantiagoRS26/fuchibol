@@ -5,6 +5,7 @@ const playerSchema = new mongoose.Schema({
     position: { type: String, enum: ['Delantero', 'Defensa', 'Centrocampista', 'Portero', 'Lateral'], required: true },
     totalGoals: { type: Number, default: 0 },
     totalAssists: { type: Number, default: 0 },
+    profilePhoto: { type: String, default: '' },
     matchHistory: [{
         matchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Match' },
         role: { type: String },

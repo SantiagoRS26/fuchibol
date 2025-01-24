@@ -7,14 +7,24 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
+// Importa tu nuevo componente de drag & drop
+import CustomDragAndDropField from "@/components/CustomDragAndDropField";
+
+/** Estructuras de datos **/
 type Player = {
 	_id: string;
 	name: string;
+	profilePhoto?: string;
 };
 
 type TeamItemFromDB = {
-	player: string | { _id: string; name: string }; // Puede ser populado o solo el ID
+	player: string | { _id: string; name: string };
 	role: string;
+	// El backend debería permitir algo así:
+	position?: {
+		x: number;
+		y: number;
+	};
 };
 
 type MatchFromDB = {
@@ -22,8 +32,15 @@ type MatchFromDB = {
 	date: string;
 	teamA: TeamItemFromDB[];
 	teamB: TeamItemFromDB[];
-	// goals: ...
+	// ...
 };
+
+interface PlayerInTeam {
+	playerId: string;
+	role: string;
+	x: number; // 0..1
+	y: number; // 0..1
+}
 
 const roles = ["Delantero", "Defensa", "Centrocampista", "Portero", "Lateral"];
 
@@ -31,16 +48,13 @@ export default function EditMatchPage() {
 	const router = useRouter();
 	const { id } = useParams() as { id: string };
 
-	// Fecha
 	const [date, setDate] = useState("");
-	// Todos los jugadores
 	const [players, setPlayers] = useState<Player[]>([]);
 
-	// Arreglos de { playerId, role } para cada equipo
-	const [teamA, setTeamA] = useState<{ playerId: string; role: string }[]>([]);
-	const [teamB, setTeamB] = useState<{ playerId: string; role: string }[]>([]);
+	// Ahora guardamos también x,y en cada objeto
+	const [teamA, setTeamA] = useState<PlayerInTeam[]>([]);
+	const [teamB, setTeamB] = useState<PlayerInTeam[]>([]);
 
-	// Estados temporales para la asignación
 	const [selectedPlayerA, setSelectedPlayerA] = useState("");
 	const [roleA, setRoleA] = useState(roles[0]);
 	const [selectedPlayerB, setSelectedPlayerB] = useState("");
@@ -48,7 +62,7 @@ export default function EditMatchPage() {
 
 	const [loading, setLoading] = useState(true);
 
-	// 1. Cargar la lista de jugadores
+	// 1. Cargar lista de jugadores
 	useEffect(() => {
 		const fetchPlayers = async () => {
 			try {
@@ -75,7 +89,6 @@ export default function EditMatchPage() {
 					console.error("Error al obtener el partido");
 					return;
 				}
-
 				const match: MatchFromDB = await res.json();
 
 				// Formatear fecha/hora para <input type="datetime-local">
@@ -85,40 +98,37 @@ export default function EditMatchPage() {
 					.slice(0, 16);
 				setDate(iso);
 
-				// Transformar teamA, teamB a { playerId, role }
-				const initialTeamA = (match.teamA || []).map((item) => {
-					// Si item.player es un objeto populado { _id, name }, toma el _id
-					if (typeof item.player === "object" && item.player !== null) {
-						return {
-							playerId: item.player._id,
-							role: item.role,
-						};
-					} else {
-						// Si viene sin popular => es un string con la ID
-						return {
-							playerId: item.player as string,
-							role: item.role,
-						};
-					}
+				// Transformar teamA, teamB a { playerId, role, x, y }
+				const initialTeamA: PlayerInTeam[] = (match.teamA || []).map((item) => {
+					const pId =
+						typeof item.player === "object" && item.player !== null
+							? item.player._id
+							: (item.player as string);
+
+					return {
+						playerId: pId,
+						role: item.role,
+						x: item.position?.x ?? 0.5, // Si no hay position, la centramos
+						y: item.position?.y ?? 0.5,
+					};
 				});
 
-				const initialTeamB = (match.teamB || []).map((item) => {
-					if (typeof item.player === "object" && item.player !== null) {
-						return {
-							playerId: item.player._id,
-							role: item.role,
-						};
-					} else {
-						return {
-							playerId: item.player as string,
-							role: item.role,
-						};
-					}
+				const initialTeamB: PlayerInTeam[] = (match.teamB || []).map((item) => {
+					const pId =
+						typeof item.player === "object" && item.player !== null
+							? item.player._id
+							: (item.player as string);
+
+					return {
+						playerId: pId,
+						role: item.role,
+						x: item.position?.x ?? 0.5,
+						y: item.position?.y ?? 0.5,
+					};
 				});
 
 				setTeamA(initialTeamA);
 				setTeamB(initialTeamB);
-
 				setLoading(false);
 			} catch (error) {
 				console.error(error);
@@ -130,7 +140,7 @@ export default function EditMatchPage() {
 		}
 	}, [id]);
 
-	// 3. Filtrar jugadores para no repetir
+	// 3. Filtrar jugadores
 	const usedPlayerIds = new Set([
 		...teamA.map((item) => item.playerId),
 		...teamB.map((item) => item.playerId),
@@ -139,17 +149,33 @@ export default function EditMatchPage() {
 	const availablePlayersForA = players.filter((p) => !usedPlayerIds.has(p._id));
 	const availablePlayersForB = players.filter((p) => !usedPlayerIds.has(p._id));
 
-	// 4. Funciones para agregar/quitar jugadores
+	// 4. Agregar/quitar jugadores con posición default
 	const handleAddPlayerToTeamA = () => {
 		if (!selectedPlayerA) return;
-		setTeamA((prev) => [...prev, { playerId: selectedPlayerA, role: roleA }]);
+		setTeamA((prev) => [
+			...prev,
+			{
+				playerId: selectedPlayerA,
+				role: roleA,
+				x: 0.5,
+				y: 0.5,
+			},
+		]);
 		setSelectedPlayerA("");
 		setRoleA(roles[0]);
 	};
 
 	const handleAddPlayerToTeamB = () => {
 		if (!selectedPlayerB) return;
-		setTeamB((prev) => [...prev, { playerId: selectedPlayerB, role: roleB }]);
+		setTeamB((prev) => [
+			...prev,
+			{
+				playerId: selectedPlayerB,
+				role: roleB,
+				x: 0.5,
+				y: 0.5,
+			},
+		]);
 		setSelectedPlayerB("");
 		setRoleB(roles[0]);
 	};
@@ -157,12 +183,58 @@ export default function EditMatchPage() {
 	const handleRemoveFromTeamA = (index: number) => {
 		setTeamA((prev) => prev.filter((_, i) => i !== index));
 	};
-
 	const handleRemoveFromTeamB = (index: number) => {
 		setTeamB((prev) => prev.filter((_, i) => i !== index));
 	};
 
-	// 5. Actualizar partido (PUT)
+	// 5. Combinar ambos equipos para mostrarlos en la cancha
+	const fieldPlayers = [
+		...teamA.map((item) => {
+			const p = players.find((pl) => pl._id === item.playerId);
+			return {
+				id: item.playerId,
+				name: p?.name || "Sin nombre",
+				x: item.x,
+				y: item.y,
+				photoUrl: p?.profilePhoto || "",
+			};
+		}),
+		...teamB.map((item) => {
+			const p = players.find((pl) => pl._id === item.playerId);
+			return {
+				id: item.playerId,
+				name: p?.name || "Sin nombre",
+				x: item.x,
+				y: item.y,
+				photoUrl: p?.profilePhoto || "",
+			};
+		}),
+	];
+
+	/**
+	 * 6. Actualizar posición al arrastrar
+	 */
+	const handlePositionChange = (
+		playerId: string,
+		newX: number,
+		newY: number
+	) => {
+		setTeamA((prev) =>
+			prev.map((item) =>
+				item.playerId === playerId ? { ...item, x: newX, y: newY } : item
+			)
+		);
+		setTeamB((prev) =>
+			prev.map((item) =>
+				item.playerId === playerId ? { ...item, x: newX, y: newY } : item
+			)
+		);
+	};
+
+	/**
+	 * 7. Guardar cambios (PUT)
+	 *    Enviamos también la 'position' al backend
+	 */
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
@@ -171,10 +243,12 @@ export default function EditMatchPage() {
 			teamA: teamA.map((item) => ({
 				player: item.playerId,
 				role: item.role,
+				position: { x: item.x, y: item.y },
 			})),
 			teamB: teamB.map((item) => ({
 				player: item.playerId,
 				role: item.role,
+				position: { x: item.x, y: item.y },
 			})),
 		};
 
@@ -192,7 +266,6 @@ export default function EditMatchPage() {
 				console.error("Error al actualizar partido");
 				return;
 			}
-
 			router.push("/matches");
 		} catch (error) {
 			console.error(error);
@@ -231,6 +304,7 @@ export default function EditMatchPage() {
 						</div>
 
 						<div className="flex flex-col md:flex-row md:space-x-8">
+							{/* Equipo A */}
 							<div className="flex-1">
 								<h2 className="text-lg font-semibold text-gray-800 mb-3">
 									Equipo A
@@ -296,6 +370,7 @@ export default function EditMatchPage() {
 								)}
 							</div>
 
+							{/* Equipo B */}
 							<div className="flex-1">
 								<h2 className="text-lg font-semibold text-gray-800 mb-3">
 									Equipo B
@@ -361,6 +436,15 @@ export default function EditMatchPage() {
 								)}
 							</div>
 						</div>
+
+						{/* Cancha para arrastrar jugadores */}
+						<h2 className="text-lg font-semibold text-gray-800">
+							Distribución en la Cancha
+						</h2>
+						<CustomDragAndDropField
+							players={fieldPlayers}
+							onPositionChange={handlePositionChange}
+						/>
 
 						<Button
 							type="submit"

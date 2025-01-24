@@ -10,11 +10,19 @@ const matchSchema = new mongoose.Schema({
     date: { type: Date, default: Date.now },
     teamA: [{
         player: { type: mongoose.Schema.Types.ObjectId, ref: 'Player', required: true },
-        role: { type: String, enum: ['Delantero', 'Defensa', 'Centrocampista', 'Portero', 'Lateral'] }
+        role: { type: String, enum: ['Delantero', 'Defensa', 'Centrocampista', 'Portero', 'Lateral'] },
+        position: {
+            x: { type: Number },
+            y: { type: Number }
+        }
     }],
     teamB: [{
         player: { type: mongoose.Schema.Types.ObjectId, ref: 'Player', required: true },
-        role: { type: String, enum: ['Delantero', 'Defensa', 'Centrocampista', 'Portero', 'Lateral'] }
+        role: { type: String, enum: ['Delantero', 'Defensa', 'Centrocampista', 'Portero', 'Lateral'] },
+        position: {
+            x: { type: Number },
+            y: { type: Number }
+        }
     }],
     goals: [goalSchema]
 });

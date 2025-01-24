@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
 import AddGoalForm from "@/components/AddGoalForm";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import ReadOnlyField from "@/components/ReadOnlyField";
 
 type PlayerInfo = {
 	_id: string;
 	name: string;
 	position: string;
+	profilePhoto?: string;
 };
 
 type GoalInfo = {
@@ -16,8 +18,17 @@ type GoalInfo = {
 };
 
 type TeamPlayer = {
-	player: PlayerInfo;
+	player: {
+		_id: string;
+		name: string;
+		position?: string;
+		profilePhoto?: string;
+	};
 	role: string;
+	position?: {
+		x: number;
+		y: number;
+	};
 };
 
 type Match = {
@@ -33,15 +44,39 @@ export default async function PlayerDetailPage({
 }: {
 	params: Promise<{ id: string }>;
 }) {
-	const id = (await params).id;
+	const { id } = await params;
 
-	const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/matches/${id}`);
+	// Obtén el partido
+	const res = await fetch(
+		`${process.env.NEXT_PUBLIC_API_BASE_URL}/matches/${id}`
+	);
 
 	if (!res.ok) {
 		return notFound();
 	}
 
 	const match: Match = await res.json();
+
+	console.log("Respuesta de obtener el partido: ", match);
+
+	// Construye el array de jugadores para el campo
+	// Se incluyen la ID, el nombre, la foto y las coordenadas x,y
+	const fieldPlayers = [
+		...match.teamA.map((item) => ({
+			id: item.player._id,
+			name: item.player.name,
+			photo: item.player.profilePhoto || "",
+			x: item.position?.x ?? 0.5,
+			y: item.position?.y ?? 0.5,
+		})),
+		...match.teamB.map((item) => ({
+			id: item.player._id,
+			name: item.player.name,
+			photo: item.player.profilePhoto || "",
+			x: item.position?.x ?? 0.5,
+			y: item.position?.y ?? 0.5,
+		})),
+	];
 
 	return (
 		<div className="container mx-auto py-12 px-6">
@@ -121,6 +156,12 @@ export default async function PlayerDetailPage({
 							<p className="text-sm text-gray-600">No hay goles registrados.</p>
 						)}
 					</div>
+
+					{/* Campo de solo lectura */}
+					<h3 className="text-lg font-semibold text-gray-800">
+						Visualizar Posiciones
+					</h3>
+					<ReadOnlyField players={fieldPlayers} />
 
 					<AddGoalForm matchId={match._id} />
 				</CardContent>
