@@ -242,11 +242,62 @@ class MatchService {
 
   static async deleteMatch(matchId) {
     try {
-      return await Match.findByIdAndDelete(matchId);
+      // 1. Buscar el partido
+      const match = await Match.findById(matchId);
+      if (!match) {
+        throw new Error('Partido no encontrado');
+      }
+
+      // 2. Construir el conjunto de playerIds involucrados
+      const playerIds = new Set();
+
+      // Agregar jugadores de teamA
+      match.teamA.forEach((item) => playerIds.add(item.player.toString()));
+      // Agregar jugadores de teamB
+      match.teamB.forEach((item) => playerIds.add(item.player.toString()));
+      // Agregar jugadores de goals (marcador y asistente)
+      match.goals.forEach((goal) => {
+        playerIds.add(goal.player.toString());
+        if (goal.assistBy) {
+          playerIds.add(goal.assistBy.toString());
+        }
+      });
+
+      // 3. Para cada jugador, actualizar y eliminar el matchHistory relacionado
+      for (const pid of playerIds) {
+        const player = await Player.findById(pid);
+        if (player) {
+          const index = player.matchHistory.findIndex(
+            (mh) => mh.matchId.toString() === matchId
+          );
+
+          if (index !== -1) {
+            // Obtener los goles y asistencias que tenía en ese partido
+            const removedGoals = player.matchHistory[index].goals || 0;
+            const removedAssists = player.matchHistory[index].assists || 0;
+
+            // Restar de sus totales
+            player.totalGoals = Math.max(0, player.totalGoals - removedGoals);
+            player.totalAssists = Math.max(0, player.totalAssists - removedAssists);
+
+            // Eliminar el registro de ese partido en matchHistory
+            player.matchHistory.splice(index, 1);
+
+            // Guardar cambios en el jugador
+            await player.save();
+          }
+        }
+      }
+
+      // 4. Finalmente, eliminar el partido de la base de datos
+      await Match.findByIdAndDelete(matchId);
+
+      return { message: 'Partido eliminado correctamente' };
     } catch (error) {
       throw new Error(`Error al eliminar el partido: ${error.message}`);
     }
   }
+
 
   static async addGoal(matchId, goalData) {
     try {
