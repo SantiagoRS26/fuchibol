@@ -20,7 +20,6 @@ export default function ReadOnlyField({ players }: ReadOnlyFieldProps) {
 
 	// Mide el tamaño del contenedor para convertir (x, y) de [0..1] a píxeles
 	useEffect(() => {
-		console.log(players);
 		const updateFieldSize = () => {
 			if (fieldRef.current) {
 				setFieldSize({

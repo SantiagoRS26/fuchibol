@@ -93,9 +93,7 @@ export default function EditMatchPage() {
 
 				// Formatear fecha/hora para <input type="datetime-local">
 				const dt = new Date(match.date);
-				const iso = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000)
-					.toISOString()
-					.slice(0, 16);
+				const iso = dt.toISOString().slice(0, 16);
 				setDate(iso);
 
 				// Transformar teamA, teamB a { playerId, role, x, y }
@@ -238,8 +236,13 @@ export default function EditMatchPage() {
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
+		const localDate = new Date(date); // 'date' es el valor del <input>
+		const utcDate = new Date(
+			localDate.getTime() - localDate.getTimezoneOffset() * 60000
+		).toISOString();
+
 		const updatedMatchData = {
-			date,
+			date: utcDate,
 			teamA: teamA.map((item) => ({
 				player: item.playerId,
 				role: item.role,

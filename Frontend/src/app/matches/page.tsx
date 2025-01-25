@@ -31,11 +31,14 @@ type Match = {
 export default async function MatchesPage() {
 	const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/matches`, {
 		next: { revalidate: 0 }, // (opcional) deshabilita caché en dev
-	  });
-	  
+	});
 
 	if (!res.ok) {
-		return <p className="p-4 text-center text-red-500 font-semibold">Error al cargar los partidos</p>;
+		return (
+			<p className="p-4 text-center text-red-500 font-semibold">
+				Error al cargar los partidos
+			</p>
+		);
 	}
 
 	const matches: Match[] = await res.json();
@@ -53,21 +56,37 @@ export default async function MatchesPage() {
 
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 				{matches.map((match) => (
-					<Card key={match._id} className="shadow-lg border border-gray-200 rounded-lg overflow-hidden">
+					<Card
+						key={match._id}
+						className="shadow-lg border border-gray-200 rounded-lg overflow-hidden">
 						<CardHeader className="bg-gray-100 px-4 py-3">
-							<CardTitle className="text-lg font-bold text-gray-700">Partido: {match._id}</CardTitle>
+							<CardTitle className="text-lg font-bold text-gray-700">
+								Partido: {match._id}
+							</CardTitle>
 						</CardHeader>
 						<CardContent className="p-4 space-y-3">
 							<p className="text-gray-600">
-								<strong className="text-gray-800">Fecha:</strong> {" "}
-								{new Date(match.date).toLocaleString("es-ES")}
+								<strong className="text-gray-800">Fecha:</strong>{" "}
+								{new Date(match.date).toLocaleString("es-ES", {
+									timeZone: "UTC",
+									hour12: true,
+									year: "numeric",
+									month: "long",
+									day: "2-digit",
+									hour: "2-digit",
+									minute: "2-digit",
+								})}
 							</p>
+
 							<p className="text-gray-600">
-								<strong className="text-gray-800">Goles Totales:</strong> {match.goals?.length ?? 0}
+								<strong className="text-gray-800">Goles Totales:</strong>{" "}
+								{match.goals?.length ?? 0}
 							</p>
 							<div className="mt-4 flex flex-wrap gap-2">
 								<Link href={`/matches/${match._id}`}>
-									<Button variant="outline" className="border-blue-500 text-blue-500 hover:bg-blue-100">
+									<Button
+										variant="outline"
+										className="border-blue-500 text-blue-500 hover:bg-blue-100">
 										Ver detalle
 									</Button>
 								</Link>

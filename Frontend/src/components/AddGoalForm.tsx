@@ -24,6 +24,9 @@ export default function AddGoalForm({ matchId }: AddGoalFormProps) {
 	const [assistBy, setAssistBy] = useState("");
 	const [time, setTime] = useState("");
 
+	// Duración del partido (en minutos)
+	const matchDuration = 60;
+
 	useEffect(() => {
 		const fetchPlayers = async () => {
 			try {
@@ -51,19 +54,27 @@ export default function AddGoalForm({ matchId }: AddGoalFormProps) {
 			return;
 		}
 
+		const enteredMinute = Number(time);
+		if (enteredMinute < 1 || enteredMinute > matchDuration) {
+			alert(`El minuto debe estar entre 1 y ${matchDuration}.`);
+			return;
+		}
+
+		const actualMinute = matchDuration - enteredMinute;
+
 		try {
 			const res = await fetch(
 				`${process.env.NEXT_PUBLIC_API_BASE_URL}/matches/${matchId}/goals`,
 				{
-				  method: "POST",
-				  headers: { "Content-Type": "application/json" },
-				  body: JSON.stringify({
-					player: playerId,
-					assistBy: assistBy || null,
-					time: Number(time),
-				  }),
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						player: playerId,
+						assistBy: assistBy || null,
+						time: actualMinute,
+					}),
 				}
-			  );			  
+			);
 
 			if (!res.ok) {
 				console.error("Error al agregar gol");

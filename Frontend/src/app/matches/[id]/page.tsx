@@ -57,8 +57,6 @@ export default async function PlayerDetailPage({
 
 	const match: Match = await res.json();
 
-	console.log("Respuesta de obtener el partido: ", match);
-
 	// Construye el array de jugadores para el campo
 	// Se incluyen la ID, el nombre, la foto y las coordenadas x,y
 	const fieldPlayers = [
@@ -92,7 +90,15 @@ export default async function PlayerDetailPage({
 					</p>
 					<p className="text-gray-700">
 						<strong className="text-gray-800">Fecha:</strong>{" "}
-						{new Date(match.date).toLocaleString("es-ES")}
+						{new Date(match.date).toLocaleString("es-ES", {
+							timeZone: "UTC",
+							hour12: true,
+							year: "numeric",
+							month: "long",
+							day: "2-digit",
+							hour: "2-digit",
+							minute: "2-digit",
+						})}
 					</p>
 
 					<div>
