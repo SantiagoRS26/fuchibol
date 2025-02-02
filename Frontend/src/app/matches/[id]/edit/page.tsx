@@ -7,10 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
-// Importa tu nuevo componente de drag & drop
 import CustomDragAndDropField from "@/components/CustomDragAndDropField";
 
-/** Estructuras de datos **/
 type Player = {
 	_id: string;
 	name: string;
@@ -20,7 +18,6 @@ type Player = {
 type TeamItemFromDB = {
 	player: string | { _id: string; name: string };
 	role: string;
-	// El backend debería permitir algo así:
 	position?: {
 		x: number;
 		y: number;
@@ -32,14 +29,13 @@ type MatchFromDB = {
 	date: string;
 	teamA: TeamItemFromDB[];
 	teamB: TeamItemFromDB[];
-	// ...
 };
 
 interface PlayerInTeam {
 	playerId: string;
 	role: string;
-	x: number; // 0..1
-	y: number; // 0..1
+	x: number;
+	y: number;
 }
 
 const roles = ["Delantero", "Defensa", "Centrocampista", "Portero", "Lateral"];
@@ -51,7 +47,6 @@ export default function EditMatchPage() {
 	const [date, setDate] = useState("");
 	const [players, setPlayers] = useState<Player[]>([]);
 
-	// Ahora guardamos también x,y en cada objeto
 	const [teamA, setTeamA] = useState<PlayerInTeam[]>([]);
 	const [teamB, setTeamB] = useState<PlayerInTeam[]>([]);
 
@@ -62,7 +57,6 @@ export default function EditMatchPage() {
 
 	const [loading, setLoading] = useState(true);
 
-	// 1. Cargar lista de jugadores
 	useEffect(() => {
 		const fetchPlayers = async () => {
 			try {
@@ -78,7 +72,6 @@ export default function EditMatchPage() {
 		fetchPlayers();
 	}, []);
 
-	// 2. Cargar el partido
 	useEffect(() => {
 		const fetchMatch = async () => {
 			try {
@@ -91,12 +84,10 @@ export default function EditMatchPage() {
 				}
 				const match: MatchFromDB = await res.json();
 
-				// Formatear fecha/hora para <input type="datetime-local">
 				const dt = new Date(match.date);
 				const iso = dt.toISOString().slice(0, 16);
 				setDate(iso);
 
-				// Transformar teamA, teamB a { playerId, role, x, y }
 				const initialTeamA: PlayerInTeam[] = (match.teamA || []).map((item) => {
 					const pId =
 						typeof item.player === "object" && item.player !== null
@@ -106,7 +97,7 @@ export default function EditMatchPage() {
 					return {
 						playerId: pId,
 						role: item.role,
-						x: item.position?.x ?? 0.5, // Si no hay position, la centramos
+						x: item.position?.x ?? 0.5,
 						y: item.position?.y ?? 0.5,
 					};
 				});
@@ -138,7 +129,6 @@ export default function EditMatchPage() {
 		}
 	}, [id]);
 
-	// 3. Filtrar jugadores
 	const usedPlayerIds = new Set([
 		...teamA.map((item) => item.playerId),
 		...teamB.map((item) => item.playerId),
@@ -147,7 +137,6 @@ export default function EditMatchPage() {
 	const availablePlayersForA = players.filter((p) => !usedPlayerIds.has(p._id));
 	const availablePlayersForB = players.filter((p) => !usedPlayerIds.has(p._id));
 
-	// 4. Agregar/quitar jugadores con posición default
 	const handleAddPlayerToTeamA = () => {
 		if (!selectedPlayerA) return;
 		setTeamA((prev) => [
@@ -185,7 +174,6 @@ export default function EditMatchPage() {
 		setTeamB((prev) => prev.filter((_, i) => i !== index));
 	};
 
-	// 5. Combinar ambos equipos para mostrarlos en la cancha
 	const fieldPlayers = [
 		...teamA.map((item) => {
 			const p = players.find((pl) => pl._id === item.playerId);
@@ -209,9 +197,6 @@ export default function EditMatchPage() {
 		}),
 	];
 
-	/**
-	 * 6. Actualizar posición al arrastrar
-	 */
 	const handlePositionChange = (
 		playerId: string,
 		newX: number,
@@ -229,14 +214,10 @@ export default function EditMatchPage() {
 		);
 	};
 
-	/**
-	 * 7. Guardar cambios (PUT)
-	 *    Enviamos también la 'position' al backend
-	 */
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
-		const localDate = new Date(date); // 'date' es el valor del <input>
+		const localDate = new Date(date);
 		const utcDate = new Date(
 			localDate.getTime() - localDate.getTimezoneOffset() * 60000
 		).toISOString();
@@ -280,17 +261,18 @@ export default function EditMatchPage() {
 	}
 
 	return (
-		<div className="container mx-auto py-12 px-6">
-			<Card className="max-w-3xl mx-auto shadow-lg border border-gray-200 rounded-lg overflow-hidden">
+		<div className="container mx-auto py-12 px-4 sm:px-6 lg:px-8">
+			<Card className="max-w-7xl mx-auto shadow-xl border border-gray-200 rounded-lg overflow-hidden">
 				<CardHeader className="bg-gray-100 px-6 py-4">
 					<CardTitle className="text-2xl font-bold text-gray-800">
 						Editar Partido
 					</CardTitle>
 				</CardHeader>
-				<CardContent className="p-6 space-y-6">
+				<CardContent className="p-6 space-y-8">
 					<form
 						onSubmit={handleSubmit}
-						className="space-y-6">
+						className="space-y-6"
+						aria-label="Editar partido">
 						<div>
 							<Label
 								htmlFor="date"
@@ -300,7 +282,7 @@ export default function EditMatchPage() {
 							<Input
 								id="date"
 								type="datetime-local"
-								className="w-full mt-1 border-gray-300 rounded-md shadow-sm"
+								className="w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
 								value={date}
 								onChange={(e) => setDate(e.target.value)}
 							/>
@@ -312,9 +294,9 @@ export default function EditMatchPage() {
 								<h2 className="text-lg font-semibold text-gray-800 mb-3">
 									Equipo A
 								</h2>
-								<div className="flex flex-col md:flex-row md:space-x-4 mb-4">
+								<div className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4 mb-4">
 									<select
-										className="rounded-md border-gray-300 w-full p-2"
+										className="rounded-md border-gray-300 w-full p-2 focus:ring-blue-500 focus:border-blue-500"
 										value={selectedPlayerA}
 										onChange={(e) => setSelectedPlayerA(e.target.value)}>
 										<option value="">-- Seleccionar Jugador --</option>
@@ -327,7 +309,7 @@ export default function EditMatchPage() {
 										))}
 									</select>
 									<select
-										className="rounded-md border-gray-300 w-full p-2"
+										className="rounded-md border-gray-300 w-full p-2 focus:ring-blue-500 focus:border-blue-500"
 										value={roleA}
 										onChange={(e) => setRoleA(e.target.value)}>
 										{roles.map((role) => (
@@ -341,7 +323,7 @@ export default function EditMatchPage() {
 									<Button
 										onClick={handleAddPlayerToTeamA}
 										type="button"
-										className="bg-blue-600 text-white px-4 py-2 rounded-md">
+										className="bg-blue-600 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
 										Agregar A
 									</Button>
 								</div>
@@ -363,7 +345,7 @@ export default function EditMatchPage() {
 														variant="destructive"
 														onClick={() => handleRemoveFromTeamA(index)}
 														type="button"
-														className="text-red-600 hover:text-red-800">
+														className="text-red-600 hover:text-red-800 focus:outline-none focus:ring-2 focus:ring-red-500">
 														Quitar
 													</Button>
 												</li>
@@ -378,9 +360,9 @@ export default function EditMatchPage() {
 								<h2 className="text-lg font-semibold text-gray-800 mb-3">
 									Equipo B
 								</h2>
-								<div className="flex flex-col md:flex-row md:space-x-4 mb-4">
+								<div className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4 mb-4">
 									<select
-										className="rounded-md border-gray-300 w-full p-2"
+										className="rounded-md border-gray-300 w-full p-2 focus:ring-blue-500 focus:border-blue-500"
 										value={selectedPlayerB}
 										onChange={(e) => setSelectedPlayerB(e.target.value)}>
 										<option value="">-- Seleccionar Jugador --</option>
@@ -393,7 +375,7 @@ export default function EditMatchPage() {
 										))}
 									</select>
 									<select
-										className="rounded-md border-gray-300 w-full p-2"
+										className="rounded-md border-gray-300 w-full p-2 focus:ring-blue-500 focus:border-blue-500"
 										value={roleB}
 										onChange={(e) => setRoleB(e.target.value)}>
 										{roles.map((role) => (
@@ -407,7 +389,7 @@ export default function EditMatchPage() {
 									<Button
 										onClick={handleAddPlayerToTeamB}
 										type="button"
-										className="bg-blue-600 text-white px-4 py-2 rounded-md">
+										className="bg-blue-600 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
 										Agregar B
 									</Button>
 								</div>
@@ -429,7 +411,7 @@ export default function EditMatchPage() {
 														variant="destructive"
 														onClick={() => handleRemoveFromTeamB(index)}
 														type="button"
-														className="text-red-600 hover:text-red-800">
+														className="text-red-600 hover:text-red-800 focus:outline-none focus:ring-2 focus:ring-red-500">
 														Quitar
 													</Button>
 												</li>
@@ -441,19 +423,28 @@ export default function EditMatchPage() {
 						</div>
 
 						{/* Cancha para arrastrar jugadores */}
-						<h2 className="text-lg font-semibold text-gray-800">
-							Distribución en la Cancha
-						</h2>
-						<CustomDragAndDropField
-							players={fieldPlayers}
-							onPositionChange={handlePositionChange}
-						/>
+						<div className="mt-6">
+							<h2 className="text-lg font-semibold text-gray-800 mb-4">
+								Distribución en la Cancha
+							</h2>
+							<div
+								className="border border-gray-300 rounded-md overflow-hidden shadow-sm"
+								aria-label="Cancha de juego">
+								{/* Se asume que dentro de CustomDragAndDropField se han realizado ajustes para una cancha más grande, especialmente en móviles */}
+								<CustomDragAndDropField
+									players={fieldPlayers}
+									onPositionChange={handlePositionChange}
+								/>
+							</div>
+						</div>
 
-						<Button
-							type="submit"
-							className="bg-green-600 text-white px-6 py-2 rounded-md">
-							Guardar Cambios
-						</Button>
+						<div>
+							<Button
+								type="submit"
+								className="bg-green-600 text-white px-6 py-3 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-green-500">
+								Guardar Cambios
+							</Button>
+						</div>
 					</form>
 				</CardContent>
 			</Card>

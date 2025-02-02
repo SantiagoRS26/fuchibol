@@ -5,9 +5,9 @@ import React, { useRef, useState, useEffect } from "react";
 type FieldPlayer = {
 	id: string;
 	name: string;
-	photo?: string; // <-- Nueva propiedad para la URL de la foto
-	x: number; // 0..1
-	y: number; // 0..1
+	photo?: string;
+	x: number;
+	y: number;
 };
 
 type ReadOnlyFieldProps = {
@@ -18,7 +18,6 @@ export default function ReadOnlyField({ players }: ReadOnlyFieldProps) {
 	const fieldRef = useRef<HTMLDivElement>(null);
 	const [fieldSize, setFieldSize] = useState({ width: 0, height: 0 });
 
-	// Mide el tamaño del contenedor para convertir (x, y) de [0..1] a píxeles
 	useEffect(() => {
 		const updateFieldSize = () => {
 			if (fieldRef.current) {
@@ -39,9 +38,9 @@ export default function ReadOnlyField({ players }: ReadOnlyFieldProps) {
 			style={{
 				width: "100%",
 				height: 0,
-				paddingBottom: "66%", // Mantener ~proporción de campo (ej. 16:9)
+				paddingBottom: "66%",
 				position: "relative",
-				backgroundImage: `url("/campo-futbol.jpg")`, // Ajusta tu imagen
+				backgroundImage: `url("/campo-futbol.jpg")`,
 				backgroundSize: "cover",
 				backgroundPosition: "center",
 				border: "2px solid #ccc",
@@ -49,11 +48,9 @@ export default function ReadOnlyField({ players }: ReadOnlyFieldProps) {
 				marginTop: "1rem",
 			}}>
 			{players.map((player) => {
-				// Convertir posición relativa a píxeles
 				const leftPx = player.x * fieldSize.width;
 				const topPx = player.y * fieldSize.height;
 
-				// Si el jugador tiene foto, la mostramos, si no, el nombre
 				return (
 					<div
 						key={player.id}
