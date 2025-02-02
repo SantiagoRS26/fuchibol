@@ -8,11 +8,10 @@ type Player = {
 	position: string;
 	totalGoals: number;
 	totalAssists: number;
-	profilePhoto?: string; // Asegúrate de que tu API devuelva este campo
+	profilePhoto?: string;
 };
 
 export default async function PlayersPage() {
-	// Fetch de jugadores (Server Component)
 	const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/players`, {
 		next: { revalidate: 0 },
 	});
@@ -21,7 +20,6 @@ export default async function PlayersPage() {
 
 	return (
 		<div className="container mx-auto py-12 px-6">
-			{/* Encabezado */}
 			<div className="flex justify-between items-center mb-8 border-b pb-4">
 				<h1 className="text-3xl font-extrabold text-gray-800">
 					Lista de Jugadores
@@ -32,11 +30,8 @@ export default async function PlayersPage() {
 					</Button>
 				</Link>
 			</div>
-
-			{/* Grid de jugadores */}
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 				{players.map((player) => {
-					// Foto del jugador o imagen por defecto
 					const photoSrc = player.profilePhoto || "/default.png";
 
 					return (
@@ -69,8 +64,6 @@ export default async function PlayersPage() {
 									</strong>{" "}
 									{player.totalAssists}
 								</p>
-
-								{/* Botones de acción */}
 								<div className="mt-4 flex flex-wrap gap-2">
 									<Link href={`/players/${player._id}`}>
 										<Button
