@@ -1,3 +1,4 @@
+// En AddGoalForm
 "use client";
 
 import { useState, useEffect } from "react";
@@ -20,8 +21,8 @@ export default function AddGoalForm({ matchId }: AddGoalFormProps) {
 	const router = useRouter();
 
 	const [players, setPlayers] = useState<Player[]>([]);
-	const [playerId, setPlayerId] = useState("");
-	const [assistBy, setAssistBy] = useState("");
+	const [playerName, setPlayerName] = useState("");
+	const [assistByName, setAssistByName] = useState("");
 	const [time, setTime] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [errorMsg, setErrorMsg] = useState("");
@@ -56,7 +57,7 @@ export default function AddGoalForm({ matchId }: AddGoalFormProps) {
 		e.preventDefault();
 		setErrorMsg("");
 
-		if (!playerId || !time) {
+		if (!playerName || !time) {
 			setErrorMsg("Debes seleccionar un jugador y un minuto válido.");
 			return;
 		}
@@ -64,6 +65,15 @@ export default function AddGoalForm({ matchId }: AddGoalFormProps) {
 		const enteredMinute = Number(time);
 		if (enteredMinute < 1 || enteredMinute > matchDuration) {
 			setErrorMsg(`El minuto debe estar entre 1 y ${matchDuration}.`);
+			return;
+		}
+
+		// Encuentra el jugador por nombre (asumiendo nombres únicos)
+		const selectedPlayer = players.find((p) => p.name === playerName);
+		const selectedAssist = players.find((p) => p.name === assistByName);
+
+		if (!selectedPlayer) {
+			setErrorMsg("El jugador que anota no fue encontrado.");
 			return;
 		}
 
@@ -77,8 +87,8 @@ export default function AddGoalForm({ matchId }: AddGoalFormProps) {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
-						player: playerId,
-						assistBy: assistBy || null,
+						player: selectedPlayer._id,
+						assistBy: selectedAssist ? selectedAssist._id : null,
 						time: actualMinute,
 					}),
 				}
@@ -90,10 +100,9 @@ export default function AddGoalForm({ matchId }: AddGoalFormProps) {
 				return;
 			}
 
-			// Actualiza la vista y reinicia el formulario
 			router.refresh();
-			setPlayerId("");
-			setAssistBy("");
+			setPlayerName("");
+			setAssistByName("");
 			setTime("");
 		} catch (error) {
 			console.error(error);
@@ -116,46 +125,50 @@ export default function AddGoalForm({ matchId }: AddGoalFormProps) {
 					className="space-y-5">
 					<div>
 						<Label
-							htmlFor="playerId"
+							htmlFor="playerName"
 							className="block text-sm font-medium text-gray-700">
 							Jugador que anota:
 						</Label>
-						<select
-							id="playerId"
-							value={playerId}
-							onChange={(e) => setPlayerId(e.target.value)}
-							className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
-							<option value="">Selecciona jugador</option>
+						<Input
+							id="playerName"
+							list="players-list"
+							placeholder="Escribe el nombre..."
+							value={playerName}
+							onChange={(e) => setPlayerName(e.target.value)}
+							className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+						/>
+						<datalist id="players-list">
 							{players.map((p) => (
 								<option
 									key={p._id}
-									value={p._id}>
-									{p.name}
-								</option>
+									value={p.name}
+								/>
 							))}
-						</select>
+						</datalist>
 					</div>
 
 					<div>
 						<Label
-							htmlFor="assistBy"
+							htmlFor="assistByName"
 							className="block text-sm font-medium text-gray-700">
 							Jugador que asiste (opcional):
 						</Label>
-						<select
-							id="assistBy"
-							value={assistBy}
-							onChange={(e) => setAssistBy(e.target.value)}
-							className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
-							<option value="">Sin asistencia</option>
+						<Input
+							id="assistByName"
+							list="players-list-assist"
+							placeholder="Escribe el nombre..."
+							value={assistByName}
+							onChange={(e) => setAssistByName(e.target.value)}
+							className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+						/>
+						<datalist id="players-list-assist">
 							{players.map((p) => (
 								<option
 									key={p._id}
-									value={p._id}>
-									{p.name}
-								</option>
+									value={p.name}
+								/>
 							))}
-						</select>
+						</datalist>
 					</div>
 
 					<div>
