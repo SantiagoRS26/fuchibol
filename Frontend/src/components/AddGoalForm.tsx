@@ -1,16 +1,25 @@
-// En AddGoalForm
 "use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
-type Player = {
-	_id: string;
-	name: string;
+// Importamos react-select de forma dinámica (solo se renderiza en el cliente)
+const Select = dynamic(() => import("react-select"), { ssr: false });
+
+// Interfaz para las opciones de react-select
+interface OptionType {
+	value: string;
+	label: string;
+}
+
+// Función para convertir una fecha (string o Date) a hora colombiana.
+const convertToColombianTime = (dateInput: string | Date): string => {
+	if (!dateInput) return "";
+	const date = new Date(dateInput);
+	return date.toLocaleString("es-CO", { timeZone: "America/Bogota" });
 };
 
 interface AddGoalFormProps {
@@ -20,64 +29,112 @@ interface AddGoalFormProps {
 export default function AddGoalForm({ matchId }: AddGoalFormProps) {
 	const router = useRouter();
 
-	const [players, setPlayers] = useState<Player[]>([]);
-	const [playerName, setPlayerName] = useState("");
-	const [assistByName, setAssistByName] = useState("");
-	const [time, setTime] = useState("");
-	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [matchInfo, setMatchInfo] = useState<any>(null);
+	const [timer, setTimer] = useState(0);
+	const [showStartModal, setShowStartModal] = useState(false);
+	const [showStopModal, setShowStopModal] = useState(false);
 	const [errorMsg, setErrorMsg] = useState("");
+	const [selectedPlayer, setSelectedPlayer] = useState<OptionType | null>(null);
+	const [selectedAssist, setSelectedAssist] = useState<OptionType | null>(null);
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
-	// Duración del partido (en minutos)
-	const matchDuration = 60;
+	// Función para obtener la información actual del partido
+	const fetchMatchInfo = async () => {
+		try {
+			const res = await fetch(
+				`${process.env.NEXT_PUBLIC_API_BASE_URL}/matches/${matchId}`
+			);
+			if (res.ok) {
+				const data = await res.json();
+				setMatchInfo(data);
+			}
+		} catch (error) {
+			console.error(error);
+		}
+	};
 
 	useEffect(() => {
-		const fetchPlayers = async () => {
-			try {
-				const res = await fetch(
-					`${process.env.NEXT_PUBLIC_API_BASE_URL}/players`
-				);
-				if (!res.ok) {
-					console.error("Error al obtener jugadores");
-					setErrorMsg(
-						"Error al obtener jugadores. Intenta recargar la página."
-					);
-					return;
-				}
-				const data = await res.json();
-				setPlayers(data);
-			} catch (error) {
-				console.error(error);
-				setErrorMsg("Error en la conexión. Intenta más tarde.");
-			}
-		};
-		fetchPlayers();
+		fetchMatchInfo();
 	}, []);
+
+	// Efecto para actualizar el contador si el partido está activo
+	useEffect(() => {
+		let interval: number;
+		if (matchInfo && matchInfo.status === "active" && matchInfo.startTime) {
+			const startTime = new Date(matchInfo.startTime).getTime();
+			interval = window.setInterval(() => {
+				const now = Date.now();
+				const elapsedMinutes = Math.floor((now - startTime) / 60000);
+				setTimer(elapsedMinutes);
+			}, 1000);
+		}
+		return () => {
+			if (interval) clearInterval(interval);
+		};
+	}, [matchInfo]);
+
+	// Genera las opciones de react-select a partir de los jugadores del partido (teamA y teamB)
+	const playersOptions: OptionType[] = matchInfo
+		? (() => {
+				const playersMap = new Map<string, any>();
+				[...(matchInfo.teamA || []), ...(matchInfo.teamB || [])].forEach(
+					(item: any) => {
+						if (item.player?._id) {
+							playersMap.set(item.player._id, item.player);
+						}
+					}
+				);
+				return Array.from(playersMap.values()).map((p: any) => ({
+					value: p._id,
+					label: p.name,
+				}));
+		  })()
+		: [];
+
+	const confirmStartMatch = async () => {
+		try {
+			const res = await fetch(
+				`${process.env.NEXT_PUBLIC_API_BASE_URL}/matches/${matchId}/start`,
+				{ method: "POST" }
+			);
+			if (!res.ok) {
+				setErrorMsg("Error al iniciar el partido.");
+				return;
+			}
+			await fetchMatchInfo();
+			setShowStartModal(false);
+		} catch (error) {
+			console.error(error);
+			setErrorMsg("Error en la conexión. Intenta más tarde.");
+		}
+	};
+
+	const confirmStopMatch = async () => {
+		try {
+			const res = await fetch(
+				`${process.env.NEXT_PUBLIC_API_BASE_URL}/matches/${matchId}/stop`,
+				{ method: "POST" }
+			);
+			if (!res.ok) {
+				setErrorMsg("Error al detener el partido.");
+				return;
+			}
+			await fetchMatchInfo();
+			setShowStopModal(false);
+		} catch (error) {
+			console.error(error);
+			setErrorMsg("Error en la conexión. Intenta más tarde.");
+		}
+	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setErrorMsg("");
 
-		if (!playerName || !time) {
-			setErrorMsg("Debes seleccionar un jugador y un minuto válido.");
-			return;
-		}
-
-		const enteredMinute = Number(time);
-		if (enteredMinute < 1 || enteredMinute > matchDuration) {
-			setErrorMsg(`El minuto debe estar entre 1 y ${matchDuration}.`);
-			return;
-		}
-
-		// Encuentra el jugador por nombre (asumiendo nombres únicos)
-		const selectedPlayer = players.find((p) => p.name === playerName);
-		const selectedAssist = players.find((p) => p.name === assistByName);
-
 		if (!selectedPlayer) {
-			setErrorMsg("El jugador que anota no fue encontrado.");
+			setErrorMsg("Debes seleccionar un jugador que anote.");
 			return;
 		}
-
-		const actualMinute = matchDuration - enteredMinute;
 
 		setIsSubmitting(true);
 		try {
@@ -87,9 +144,8 @@ export default function AddGoalForm({ matchId }: AddGoalFormProps) {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
-						player: selectedPlayer._id,
-						assistBy: selectedAssist ? selectedAssist._id : null,
-						time: actualMinute,
+						player: selectedPlayer.value,
+						assistBy: selectedAssist ? selectedAssist.value : null,
 					}),
 				}
 			);
@@ -99,11 +155,9 @@ export default function AddGoalForm({ matchId }: AddGoalFormProps) {
 				setIsSubmitting(false);
 				return;
 			}
-
 			router.refresh();
-			setPlayerName("");
-			setAssistByName("");
-			setTime("");
+			setSelectedPlayer(null);
+			setSelectedAssist(null);
 		} catch (error) {
 			console.error(error);
 			setErrorMsg("Error en la conexión. Intenta más tarde.");
@@ -114,93 +168,134 @@ export default function AddGoalForm({ matchId }: AddGoalFormProps) {
 	return (
 		<Card className="max-w-md mx-auto">
 			<CardHeader className="bg-green-500 text-white px-4 py-3 rounded-t-md">
-				<CardTitle className="text-lg font-bold">Registrar Nuevo Gol</CardTitle>
+				<CardTitle className="text-lg font-bold">Control del Partido</CardTitle>
 			</CardHeader>
 			<CardContent className="px-4 py-6">
 				{errorMsg && (
 					<div className="mb-4 text-red-600 text-sm">{errorMsg}</div>
 				)}
+
+				{/* Botones para iniciar/detener el partido */}
+				<div className="mb-4">
+					<Button
+						onClick={() => setShowStartModal(true)}
+						disabled={matchInfo?.status === "active"}
+						className="mr-2">
+						Iniciar Partido
+					</Button>
+					<Button
+						onClick={() => setShowStopModal(true)}
+						disabled={matchInfo?.status !== "active"}>
+						Detener Partido
+					</Button>
+				</div>
+
+				{/* Mostrar información del partido */}
+				{matchInfo && (
+					<div className="mb-4">
+						{matchInfo.startTime && (
+							<p>
+								<strong>Inicio del partido:</strong>{" "}
+								{convertToColombianTime(matchInfo.startTime)}
+							</p>
+						)}
+						{matchInfo.endTime && (
+							<p>
+								<strong>Fin del partido:</strong>{" "}
+								{convertToColombianTime(matchInfo.endTime)}
+							</p>
+						)}
+					</div>
+				)}
+
+				{/* Mostrar el contador si el partido está activo */}
+				{matchInfo && matchInfo.status === "active" && (
+					<div className="mb-4">
+						<p>
+							Tiempo transcurrido: <strong>{timer}</strong> minuto(s)
+						</p>
+					</div>
+				)}
+
+				{/* Formulario para registrar gol */}
 				<form
 					onSubmit={handleSubmit}
 					className="space-y-5">
 					<div>
-						<Label
-							htmlFor="playerName"
-							className="block text-sm font-medium text-gray-700">
+						<label className="block text-sm font-medium text-gray-700">
 							Jugador que anota:
-						</Label>
-						<Input
-							id="playerName"
-							list="players-list"
-							placeholder="Escribe el nombre..."
-							value={playerName}
-							onChange={(e) => setPlayerName(e.target.value)}
-							className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+						</label>
+						<Select
+							options={playersOptions}
+							onChange={(option) =>
+								setSelectedPlayer(option as OptionType | null)
+							}
+							value={selectedPlayer}
+							placeholder="Selecciona el jugador que anota..."
 						/>
-						<datalist id="players-list">
-							{players.map((p) => (
-								<option
-									key={p._id}
-									value={p.name}
-								/>
-							))}
-						</datalist>
 					</div>
 
 					<div>
-						<Label
-							htmlFor="assistByName"
-							className="block text-sm font-medium text-gray-700">
+						<label className="block text-sm font-medium text-gray-700">
 							Jugador que asiste (opcional):
-						</Label>
-						<Input
-							id="assistByName"
-							list="players-list-assist"
-							placeholder="Escribe el nombre..."
-							value={assistByName}
-							onChange={(e) => setAssistByName(e.target.value)}
-							className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+						</label>
+						<Select
+							options={playersOptions}
+							onChange={(option) =>
+								setSelectedAssist(option as OptionType | null)
+							}
+							value={selectedAssist}
+							placeholder="Selecciona el jugador que asiste..."
+							isClearable
 						/>
-						<datalist id="players-list-assist">
-							{players.map((p) => (
-								<option
-									key={p._id}
-									value={p.name}
-								/>
-							))}
-						</datalist>
-					</div>
-
-					<div>
-						<Label
-							htmlFor="time"
-							className="block text-sm font-medium text-gray-700">
-							Minuto de gol:
-						</Label>
-						<Input
-							id="time"
-							type="number"
-							min="1"
-							max={matchDuration.toString()}
-							placeholder={`Ej: 45 (1 - ${matchDuration})`}
-							value={time}
-							onChange={(e) => setTime(e.target.value)}
-							className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-						/>
-						<p className="mt-1 text-xs text-gray-500">
-							Recuerda: el minuto ingresado se invierte para calcular el tiempo
-							real.
-						</p>
 					</div>
 
 					<Button
 						type="submit"
-						disabled={isSubmitting}
+						disabled={isSubmitting || matchInfo?.status !== "active"}
 						className="w-full">
 						{isSubmitting ? "Registrando..." : "Registrar Gol"}
 					</Button>
 				</form>
 			</CardContent>
+
+			{/* Modal para iniciar el partido */}
+			{showStartModal && (
+				<div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+					<div className="bg-white p-6 rounded-md shadow-md max-w-sm w-full">
+						<p className="mb-4 text-gray-800">
+							¿Estás seguro de que deseas <strong>iniciar</strong> el partido?
+						</p>
+						<div className="flex justify-end space-x-2">
+							<Button
+								onClick={() => setShowStartModal(false)}
+								variant="outline">
+								Cancelar
+							</Button>
+							<Button onClick={confirmStartMatch}>Confirmar</Button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* Modal para detener el partido */}
+			{showStopModal && (
+				<div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+					<div className="bg-white p-6 rounded-md shadow-md max-w-sm w-full">
+						<p className="mb-4 text-gray-800">
+							¿Estás seguro de que deseas <strong>detener</strong> el partido?
+						</p>
+						<div className="flex justify-end space-x-2">
+							<Button
+								onClick={() => setShowStopModal(false)}
+								variant="outline">
+								Cancelar
+							</Button>
+							<Button onClick={confirmStopMatch}>Confirmar</Button>
+						</div>
+					</div>
+				</div>
+			)}
 		</Card>
 	);
 }

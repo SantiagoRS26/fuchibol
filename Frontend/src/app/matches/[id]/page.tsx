@@ -212,46 +212,45 @@ export default async function PlayerDetailPage({
 							Goles
 						</h3>
 						{match.goals?.length > 0 ? (
-							// Contenedor con altura fija y scroll vertical
 							<div className="max-h-96 overflow-y-auto pr-2">
 								<div className="grid gap-4">
-									{match.goals.map((goal, idx) => (
-										<div
-											key={idx}
-											className="flex items-center bg-white rounded-lg shadow p-4 border border-gray-100">
-											{/* Badge del minuto */}
-											<div className="flex-shrink-0">
-												<div className="flex items-center justify-center h-12 w-12 rounded-full bg-blue-500 text-white font-bold">
-													{goal.time}'
+									{[...match.goals]
+										.sort((a, b) => a.time - b.time)
+										.map((goal, idx) => (
+											<div
+												key={idx}
+												className="flex items-center bg-white rounded-lg shadow p-4 border border-gray-100">
+												<div className="flex-shrink-0">
+													<div className="flex items-center justify-center h-12 w-12 rounded-full bg-blue-500 text-white font-bold">
+														{goal.time}'
+													</div>
 												</div>
-											</div>
-											<div className="ml-4 flex-1">
-												<div className="flex items-center">
-													{/* Imagen o inicial del jugador */}
-													{goal.player.profilePhoto ? (
-														<img
-															className="h-10 w-10 rounded-full object-cover mr-3"
-															src={goal.player.profilePhoto}
-															alt={goal.player.name}
-														/>
-													) : (
-														<div className="h-10 w-10 flex items-center justify-center bg-blue-500 rounded-full text-white font-bold mr-3">
-															{goal.player.name.charAt(0)}
-														</div>
+												<div className="ml-4 flex-1">
+													<div className="flex items-center">
+														{goal.player.profilePhoto ? (
+															<img
+																className="h-10 w-10 rounded-full object-cover mr-3"
+																src={goal.player.profilePhoto}
+																alt={goal.player.name}
+															/>
+														) : (
+															<div className="h-10 w-10 flex items-center justify-center bg-blue-500 rounded-full text-white font-bold mr-3">
+																{goal.player.name.charAt(0)}
+															</div>
+														)}
+														<p className="text-gray-800 font-semibold">
+															{goal.player?.name ?? "Desconocido"}
+														</p>
+													</div>
+													{goal.assistBy && (
+														<p className="mt-1 text-gray-600 text-sm">
+															<span className="font-medium">Asistencia:</span>{" "}
+															{goal.assistBy.name}
+														</p>
 													)}
-													<p className="text-gray-800 font-semibold">
-														{goal.player?.name ?? "Desconocido"}
-													</p>
 												</div>
-												{goal.assistBy && (
-													<p className="mt-1 text-gray-600 text-sm">
-														<span className="font-medium">Asistencia:</span>{" "}
-														{goal.assistBy.name}
-													</p>
-												)}
 											</div>
-										</div>
-									))}
+										))}
 								</div>
 							</div>
 						) : (
