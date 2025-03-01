@@ -14,4 +14,6 @@ router.delete('/:id', PlayerController.deletePlayer);
 
 router.post('/:id/matchHistory', PlayerController.addMatchToHistory);
 
+router.post('/syncStats', PlayerController.syncStats);
+
 module.exports = router;

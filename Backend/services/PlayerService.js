@@ -1,4 +1,5 @@
 const Player = require('../models/player');
+const Match = require('../models/match');
 
 class PlayerService {
 
@@ -60,6 +61,48 @@ class PlayerService {
             return await player.save();
         } catch (error) {
             throw new Error(`Error al agregar historial de partido: ${error.message}`);
+        }
+    }
+
+    static async syncStats() {
+        try {
+            const matches = await Match.find().lean();
+
+            const playerStats = {};
+
+            matches.forEach(match => {
+                if (Array.isArray(match.goals)) {
+                    match.goals.forEach(goal => {
+                        const scorerId = goal.player.toString();
+                        if (!playerStats[scorerId]) {
+                            playerStats[scorerId] = { goals: 0, assists: 0 };
+                        }
+                        playerStats[scorerId].goals += 1;
+
+                        if (goal.assistBy) {
+                            const assistId = goal.assistBy.toString();
+                            if (!playerStats[assistId]) {
+                                playerStats[assistId] = { goals: 0, assists: 0 };
+                            }
+                            playerStats[assistId].assists += 1;
+                        }
+                    });
+                }
+            });
+
+            const players = await Player.find();
+
+            const updatePromises = players.map(player => {
+                const stats = playerStats[player._id.toString()] || { goals: 0, assists: 0 };
+                player.totalGoals = stats.goals;
+                player.totalAssists = stats.assists;
+                return player.save();
+            });
+
+            const updatedPlayers = await Promise.all(updatePromises);
+            return updatedPlayers;
+        } catch (error) {
+            throw new Error(`Error al sincronizar estadísticas: ${error.message}`);
         }
     }
 }

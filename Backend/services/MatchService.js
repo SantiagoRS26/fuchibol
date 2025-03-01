@@ -8,14 +8,12 @@ class MatchService {
       const newMatch = new Match(matchData);
       const savedMatch = await newMatch.save();
 
-      // 1. Recorre todos los jugadores de teamA
       for (const item of savedMatch.teamA) {
-        const playerId = item.player; // ObjectId
+        const playerId = item.player;
         const role = item.role;
         const player = await Player.findById(playerId);
         if (!player) continue;
 
-        // Verifica si ya existe un registro de este partido en matchHistory
         const existing = player.matchHistory.find(
           (mh) => mh.matchId.toString() === savedMatch._id.toString()
         );
@@ -23,9 +21,9 @@ class MatchService {
         if (!existing) {
           player.matchHistory.push({
             matchId: savedMatch._id,
-            role,         // Asignamos el rol
-            goals: 0,     // Por defecto 0
-            assists: 0,   // Por defecto 0
+            role,
+            goals: 0,
+            assists: 0,
           });
           await player.save();
         }
@@ -84,39 +82,25 @@ class MatchService {
 
   static async updateMatch(matchId, updateData) {
     try {
-      // 1. Obtener el partido existente (antes de actualizar)
       const existingMatch = await Match.findById(matchId);
       if (!existingMatch) {
-        return null; // Manejo de error en controlador
+        return null;
       }
 
-      // Estructura actual en la BD
-      const oldTeamA = existingMatch.teamA || []; // [{ player, role }, ...]
+      const oldTeamA = existingMatch.teamA || [];
       const oldTeamB = existingMatch.teamB || [];
 
-      // Datos nuevos (desde el body)
       const newTeamA = updateData.teamA || [];
       const newTeamB = updateData.teamB || [];
 
-      // 2. Actualizar campos básicos del partido
       if (updateData.date !== undefined) existingMatch.date = updateData.date;
-      // Actualizar el array de goles si se pasa (opcional)
       if (updateData.goals !== undefined) existingMatch.goals = updateData.goals;
 
-      // Ahora actualizamos teamA y teamB
       existingMatch.teamA = newTeamA;
       existingMatch.teamB = newTeamB;
 
-      // 3. Guardar cambios en la BD (partido)
       const updatedMatch = await existingMatch.save();
 
-      // 4. Manejar las diferencias en los equipos para actualizar 'matchHistory' de los jugadores
-      //    a) Jugadores añadidos => agregar registro
-      //    b) Jugadores quitados => eliminar registro (o dejarlo, según tu modelo)
-      //    c) Jugadores que cambian de rol => actualizar 'role' en su matchHistory
-
-      // Primero, convertiremos oldTeamA/oldTeamB y newTeamA/newTeamB en
-      //   Map<ObjectId, role> para cada equipo
       const oldTeamAmap = new Map();
       oldTeamA.forEach(item => {
         oldTeamAmap.set(item.player.toString(), item.role);
@@ -135,26 +119,19 @@ class MatchService {
         newTeamBmap.set(item.player.toString(), item.role);
       });
 
-      // Jugadores *antes* (old) en cualquier equipo
       const oldPlayersSet = new Set([...oldTeamAmap.keys(), ...oldTeamBmap.keys()]);
-      // Jugadores *después* (new) en cualquier equipo
       const newPlayersSet = new Set([...newTeamAmap.keys(), ...newTeamBmap.keys()]);
 
-      // 4a. Jugadores removidos (estaban en old y ya no están en new)
       const removedPlayers = [...oldPlayersSet].filter((pid) => !newPlayersSet.has(pid));
 
-      // 4b. Jugadores añadidos (no estaban en old y ahora sí están en new)
       const addedPlayers = [...newPlayersSet].filter((pid) => !oldPlayersSet.has(pid));
 
-      // 4c. Jugadores que permanecen, pero tal vez cambiaron de equipo o de rol
       const samePlayers = [...oldPlayersSet].filter((pid) => newPlayersSet.has(pid));
 
-      // =========== A) Manejar jugadores añadidos =============
       for (const pid of addedPlayers) {
         const player = await Player.findById(pid);
         if (!player) continue;
 
-        // Determinar si está en teamA o teamB (nuevo)
         let role = null;
         if (newTeamAmap.has(pid)) {
           role = newTeamAmap.get(pid);
@@ -162,8 +139,6 @@ class MatchService {
           role = newTeamBmap.get(pid);
         }
 
-        // Crear registro en matchHistory
-        // Ver si ya existía por alguna razón (evitar duplicar)
         const existingHistory = player.matchHistory.find(
           (mh) => mh.matchId.toString() === matchId
         );
@@ -175,51 +150,39 @@ class MatchService {
             assists: 0,
           });
         } else {
-          // si existía y quieres actualizarlo, hazlo
           existingHistory.role = role;
         }
 
         await player.save();
       }
 
-      // =========== B) Manejar jugadores removidos =============
-      // (Opcional: si deseas borrarlos de su matchHistory)
       for (const pid of removedPlayers) {
         const player = await Player.findById(pid);
         if (!player) continue;
 
-        // Borrar el matchId de su matchHistory si quieres
         const index = player.matchHistory.findIndex(
           (mh) => mh.matchId.toString() === matchId
         );
         if (index !== -1) {
-          // OJO: Si quieres conservar el histórico de un partido
-          // que el jugador haya "jugado" en el pasado, no lo elimines.
-          // Pero si tu lógica es removerlo completamente:
           player.matchHistory.splice(index, 1);
         }
 
         await player.save();
       }
 
-      // =========== C) Manejar jugadores que permanecen (cambio de rol) =============
-      // Este es el caso en que el jugador sigue en el partido, pero
-      // pudo cambiar de equipo o de rol. Actualizamos la propiedad 'role'.
       for (const pid of samePlayers) {
-        const oldRoleA = oldTeamAmap.get(pid); // undefined si no estaba
+        const oldRoleA = oldTeamAmap.get(pid);
         const oldRoleB = oldTeamBmap.get(pid);
         const newRoleA = newTeamAmap.get(pid);
         const newRoleB = newTeamBmap.get(pid);
 
-        let oldRole = oldRoleA || oldRoleB; // Rol previo
-        let newRole = newRoleA || newRoleB; // Rol nuevo
+        let oldRole = oldRoleA || oldRoleB;
+        let newRole = newRoleA || newRoleB;
 
-        // Si no cambió, no hacemos nada:
         if (oldRole === newRole) {
           continue;
         }
 
-        // Pero si cambió, actualizamos en matchHistory
         const player = await Player.findById(pid);
         if (!player) continue;
 
@@ -228,7 +191,6 @@ class MatchService {
         );
         if (existingHistory) {
           existingHistory.role = newRole;
-          // goals y assists se mantienen si ya hubo registros
         }
 
         await player.save();
@@ -242,20 +204,14 @@ class MatchService {
 
   static async deleteMatch(matchId) {
     try {
-      // 1. Buscar el partido
       const match = await Match.findById(matchId);
       if (!match) {
         throw new Error('Partido no encontrado');
       }
-
-      // 2. Construir el conjunto de playerIds involucrados
       const playerIds = new Set();
 
-      // Agregar jugadores de teamA
       match.teamA.forEach((item) => playerIds.add(item.player.toString()));
-      // Agregar jugadores de teamB
       match.teamB.forEach((item) => playerIds.add(item.player.toString()));
-      // Agregar jugadores de goals (marcador y asistente)
       match.goals.forEach((goal) => {
         playerIds.add(goal.player.toString());
         if (goal.assistBy) {
@@ -263,7 +219,6 @@ class MatchService {
         }
       });
 
-      // 3. Para cada jugador, actualizar y eliminar el matchHistory relacionado
       for (const pid of playerIds) {
         const player = await Player.findById(pid);
         if (player) {
@@ -272,29 +227,58 @@ class MatchService {
           );
 
           if (index !== -1) {
-            // Obtener los goles y asistencias que tenía en ese partido
             const removedGoals = player.matchHistory[index].goals || 0;
             const removedAssists = player.matchHistory[index].assists || 0;
 
-            // Restar de sus totales
             player.totalGoals = Math.max(0, player.totalGoals - removedGoals);
             player.totalAssists = Math.max(0, player.totalAssists - removedAssists);
 
-            // Eliminar el registro de ese partido en matchHistory
             player.matchHistory.splice(index, 1);
 
-            // Guardar cambios en el jugador
             await player.save();
           }
         }
       }
 
-      // 4. Finalmente, eliminar el partido de la base de datos
       await Match.findByIdAndDelete(matchId);
 
       return { message: 'Partido eliminado correctamente' };
     } catch (error) {
       throw new Error(`Error al eliminar el partido: ${error.message}`);
+    }
+  }
+
+  static async startMatch(matchId) {
+    try {
+      const match = await Match.findById(matchId);
+      if (!match) {
+        throw new Error("Partido no encontrado");
+      }
+      if (match.status !== 'pending') {
+        throw new Error("El partido ya ha comenzado o finalizado");
+      }
+      match.startTime = new Date();
+      match.status = 'active';
+      return await match.save();
+    } catch (error) {
+      throw new Error(`Error al iniciar el partido: ${error.message}`);
+    }
+  }
+
+  static async stopMatch(matchId) {
+    try {
+      const match = await Match.findById(matchId);
+      if (!match) {
+        throw new Error("Partido no encontrado");
+      }
+      if (match.status !== 'active') {
+        throw new Error("El partido no se encuentra activo");
+      }
+      match.endTime = new Date();
+      match.status = 'finished';
+      return await match.save();
+    } catch (error) {
+      throw new Error(`Error al detener el partido: ${error.message}`);
     }
   }
 
@@ -306,14 +290,26 @@ class MatchService {
         throw new Error('Partido no encontrado');
       }
 
-      match.goals.push(goalData);
+      let goalTime = 0;
+      if (match.status === 'active' && match.startTime) {
+        const elapsedMs = new Date() - new Date(match.startTime);
+        goalTime = Math.floor(elapsedMs / 60000);
+      } else {
+        goalTime = goalData.time || 0;
+      }
 
+      const newGoal = {
+        player: goalData.player,
+        assistBy: goalData.assistBy,
+        time: goalTime,
+      };
+
+      match.goals.push(newGoal);
       const updatedMatch = await match.save();
 
       const scoringPlayer = await Player.findById(goalData.player);
       if (scoringPlayer) {
         scoringPlayer.totalGoals += 1;
-
         const matchHistoryItem = scoringPlayer.matchHistory.find(
           (mh) => mh.matchId.toString() === matchId
         );
@@ -326,7 +322,6 @@ class MatchService {
             assists: 0,
           });
         }
-
         await scoringPlayer.save();
       }
 
@@ -334,7 +329,6 @@ class MatchService {
         const assistPlayer = await Player.findById(goalData.assistBy);
         if (assistPlayer) {
           assistPlayer.totalAssists += 1;
-
           const matchHistoryItem = assistPlayer.matchHistory.find(
             (mh) => mh.matchId.toString() === matchId
           );
@@ -347,7 +341,6 @@ class MatchService {
               assists: 1,
             });
           }
-
           await assistPlayer.save();
         }
       }

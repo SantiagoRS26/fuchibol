@@ -8,6 +8,13 @@ const goalSchema = new mongoose.Schema({
 
 const matchSchema = new mongoose.Schema({
     date: { type: Date, default: Date.now },
+    startTime: { type: Date },
+    endTime: { type: Date },
+    status: {
+        type: String,
+        enum: ['pending', 'active', 'finished'],
+        default: 'pending'
+    },
     teamA: [{
         player: { type: mongoose.Schema.Types.ObjectId, ref: 'Player', required: true },
         role: { type: String, enum: ['Delantero', 'Defensa', 'Centrocampista', 'Portero', 'Lateral'] },

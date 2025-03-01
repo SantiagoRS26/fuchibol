@@ -74,6 +74,18 @@ class PlayerController {
             return res.status(500).json({ message: error.message });
         }
     }
+
+    static async syncStats(req, res) {
+        try {
+            const updatedPlayers = await PlayerService.syncStats();
+            return res.status(200).json({
+                message: 'Estadísticas sincronizadas correctamente.',
+                players: updatedPlayers
+            });
+        } catch (error) {
+            return res.status(500).json({ message: error.message });
+        }
+    }
 }
 
 module.exports = PlayerController;
